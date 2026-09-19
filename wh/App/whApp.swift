@@ -2,8 +2,6 @@
 //  whApp.swift
 //  wh
 //
-//  Created by Max Cavalheiro on 18/09/26.
-//
 
 import os
 import SwiftUI
