@@ -156,3 +156,5 @@ Found a bug? Have an idea? [Open an issue](https://github.com/MaxCavalheiro/wh_/
 ## License
 
 [MIT](LICENSE) © Max Cavalheiro
+
+This project follows the [Contributor Covenant](CODE_OF_CONDUCT.md) code of conduct.
