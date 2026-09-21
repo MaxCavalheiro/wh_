@@ -35,6 +35,11 @@ struct MenuBarPanelView: View {
         .animation(.default, value: viewModel.notice)
         .padding(16)
         .frame(width: 340)
+        // Settings is a detour, not a place to stay: the next time the panel opens it
+        // should be on the transcriptions again. (The app has a single popover.)
+        .onReceive(NotificationCenter.default.publisher(for: NSPopover.didCloseNotification)) { _ in
+            isShowingSettings = false
+        }
     }
 
     // MARK: - Record controls

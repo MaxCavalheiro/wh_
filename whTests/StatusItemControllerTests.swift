@@ -62,6 +62,14 @@ final class StatusItemControllerTests: XCTestCase {
         (view is NSProgressIndicator ? 1 : 0) + view.subviews.reduce(0) { $0 + spinnerCount(in: $1) }
     }
 
+    /// The settings page is the only one with a shortcut recorder (an `NSSearchField`).
+    private func isOnSettingsPage() -> Bool {
+        func contains(_ view: NSView) -> Bool {
+            view is NSSearchField || view.subviews.contains(where: contains)
+        }
+        return contains(hostView)
+    }
+
     private func sendKey(_ keyCode: UInt16, characters: String, modifiers: NSEvent.ModifierFlags = []) throws {
         let window = try XCTUnwrap(hostView.window)
         let event = try XCTUnwrap(NSEvent.keyEvent(
@@ -73,6 +81,21 @@ final class StatusItemControllerTests: XCTestCase {
     }
 
     // MARK: - Tests
+
+    func testPanelReopensOnTheMainPageAfterLeavingItOnSettings() async throws {
+        controller.showPopover()
+        await settle()
+        try sendKey(43, characters: ",", modifiers: [.command])
+        await settle()
+        XCTAssertTrue(isOnSettingsPage())
+
+        controller.popover.performClose(nil)
+        await settle()
+        controller.showPopover()
+        await settle()
+
+        XCTAssertFalse(isOnSettingsPage())
+    }
 
     func testFastModeClicksRecordThenTranscribeAndOpenThePanel() async {
         controller.showPopover()
