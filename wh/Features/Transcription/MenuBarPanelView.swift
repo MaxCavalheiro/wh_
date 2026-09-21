@@ -8,20 +8,26 @@ import SwiftUI
 /// Content of the popover shown when the status bar icon is clicked.
 struct MenuBarPanelView: View {
     @ObservedObject var viewModel: TranscriptionViewModel
+    @EnvironmentObject private var settings: AppSettings
     @State private var copiedEntryID: UUID?
+    @State private var isShowingSettings = false
 
     var body: some View {
         VStack(spacing: 16) {
-            recordSection
-            Divider()
-            historySection
-            if let notice = viewModel.notice {
-                Text(notice)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: .infinity)
-                    .transition(.opacity)
+            if isShowingSettings {
+                SettingsView(onBack: { isShowingSettings = false })
+            } else {
+                recordSection
+                Divider()
+                historySection
+                if let notice = viewModel.notice {
+                    Text(notice)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: .infinity)
+                        .transition(.opacity)
+                }
             }
             Divider()
             footer
@@ -121,6 +127,7 @@ struct MenuBarPanelView: View {
                                     HistoryRow(
                                         entry: entry,
                                         isCopied: copiedEntryID == entry.id,
+                                        showsQuickActions: settings.showsQuickActions,
                                         onCopy: { copy(entry) },
                                         onOpenInChatGPT: { Task { await viewModel.openInChatGPT(entry) } }
                                     )
@@ -165,6 +172,16 @@ struct MenuBarPanelView: View {
                 .font(.caption)
                 .foregroundStyle(.tertiary)
             Spacer()
+            Button {
+                isShowingSettings.toggle()
+            } label: {
+                Image(systemName: isShowingSettings ? "gearshape.fill" : "gearshape")
+            }
+            .buttonStyle(.borderless)
+            .foregroundStyle(isShowingSettings ? Color.accentColor : Color.secondary)
+            .keyboardShortcut(",")
+            .help(isShowingSettings ? "Back" : "Settings")
+            .accessibilityLabel(isShowingSettings ? "Back to transcriptions" : "Settings")
             Button {
                 viewModel.quit()
             } label: {
@@ -246,6 +263,8 @@ private struct SectionHeader: View {
 private struct HistoryRow: View {
     let entry: TranscriptionEntry
     let isCopied: Bool
+    /// Shows the small action buttons next to the time (see `AppSettings.showsQuickActions`).
+    let showsQuickActions: Bool
     let onCopy: () -> Void
     let onOpenInChatGPT: () -> Void
 
@@ -271,17 +290,19 @@ private struct HistoryRow: View {
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
 
-                    Button(action: onOpenInChatGPT) {
-                        Image("chatgpt-icon")
-                            .renderingMode(.template)
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: 13, height: 13)
-                            .foregroundStyle(.secondary)
+                    if showsQuickActions {
+                        Button(action: onOpenInChatGPT) {
+                            Image("chatgpt-icon")
+                                .renderingMode(.template)
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 13, height: 13)
+                                .foregroundStyle(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                        .help("Open in ChatGPT")
+                        .accessibilityLabel("Open transcription in ChatGPT")
                     }
-                    .buttonStyle(.plain)
-                    .help("Open in ChatGPT")
-                    .accessibilityLabel("Open transcription in ChatGPT")
                 }
             }
 
@@ -324,4 +345,5 @@ private struct HistoryRow: View {
             chatGPTLauncher: ChatGPTLauncherService(clipboard: ClipboardService())
         )
     )
+    .environmentObject(AppSettings())
 }

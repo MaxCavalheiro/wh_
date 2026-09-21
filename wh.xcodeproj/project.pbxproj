@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		EC76400000000000000000A3 /* WhisperKit in Frameworks */ = {isa = PBXBuildFile; productRef = EC76400000000000000000A2 /* WhisperKit */; };
+		EC76400000000000000000C3 /* KeyboardShortcuts in Frameworks */ = {isa = PBXBuildFile; productRef = EC76400000000000000000C2 /* KeyboardShortcuts */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -44,6 +45,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				EC76400000000000000000A3 /* WhisperKit in Frameworks */,
+				EC76400000000000000000C3 /* KeyboardShortcuts in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -96,6 +98,7 @@
 			name = wh;
 			packageProductDependencies = (
 				EC76400000000000000000A2 /* WhisperKit */,
+				EC76400000000000000000C2 /* KeyboardShortcuts */,
 			);
 			productName = wh;
 			productReference = EC763F04305D77F200DE2234 /* wh.app */;
@@ -154,6 +157,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				EC76400000000000000000A1 /* XCRemoteSwiftPackageReference "WhisperKit" */,
+				EC76400000000000000000C1 /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = EC763F05305D77F200DE2234 /* Products */;
@@ -474,6 +478,14 @@
 				minimumVersion = 1.1.0;
 			};
 		};
+		EC76400000000000000000C1 /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sindresorhus/KeyboardShortcuts";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.0.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -481,6 +493,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = EC76400000000000000000A1 /* XCRemoteSwiftPackageReference "WhisperKit" */;
 			productName = WhisperKit;
+		};
+		EC76400000000000000000C2 /* KeyboardShortcuts */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = EC76400000000000000000C1 /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */;
+			productName = KeyboardShortcuts;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
