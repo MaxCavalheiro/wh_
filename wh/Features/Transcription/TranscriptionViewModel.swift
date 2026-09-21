@@ -135,6 +135,11 @@ final class TranscriptionViewModel: ObservableObject {
             append(TranscriptionEntry(text: text))
             clipboard.copy(text)
             state = .ready
+        } catch AppError.emptyTranscription {
+            // Silence is not a failure worth a retry button: drop it and stay ready.
+            logger.info("No speech detected, discarding")
+            showNotice("No speech detected. Try again a little closer to the mic.")
+            state = .ready
         } catch {
             logger.error("Stop/transcribe failed: \(error.localizedDescription, privacy: .public)")
             state = .failed(AppError.from(error, fallback: .transcriptionFailed))

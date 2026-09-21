@@ -387,13 +387,16 @@ final class TranscriptionViewModelTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: url.path))
     }
 
-    func testEmptyTranscription() async {
+    func testEmptyTranscriptionIsDiscardedWithoutAnError() async {
         transcriber.transcribeError = AppError.emptyTranscription
 
         await prepareAndStart()
         await viewModel.stopRecording()
 
-        XCTAssertEqual(viewModel.state, .failed(.emptyTranscription))
+        XCTAssertEqual(viewModel.state, .ready)
+        XCTAssertEqual(viewModel.notice, "No speech detected. Try again a little closer to the mic.")
+        XCTAssertTrue(viewModel.history.isEmpty)
+        XCTAssertNil(clipboard.copiedText)
     }
 
     // MARK: - Copy
