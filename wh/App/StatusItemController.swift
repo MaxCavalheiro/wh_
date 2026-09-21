@@ -13,17 +13,23 @@ import SwiftUI
 /// needed so the panel can appear when a recording starts from the global shortcut or
 /// finishes in fast mode.
 @MainActor
-final class StatusItemController {
+final class StatusItemController: NSObject, NSPopoverDelegate {
     private let viewModel: TranscriptionViewModel
     private let settings: AppSettings
-    private let statusItem: NSStatusItem
-    private let popover = NSPopover()
+    let statusItem: NSStatusItem  // internal so tests can click it
+    let popover = NSPopover()
     private var cancellables = Set<AnyCancellable>()
+    /// A transient popover closes with an animation on the click that also reaches the
+    /// status button. Showing it again during that animation is a no-op, so the request
+    /// is remembered and honoured in `popoverDidClose`.
+    private var isClosing = false
+    private var showsAgainWhenClosed = false
 
     init(viewModel: TranscriptionViewModel, settings: AppSettings) {
         self.viewModel = viewModel
         self.settings = settings
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+        super.init()
 
         let host = NSHostingController(
             rootView: MenuBarPanelView(viewModel: viewModel).environmentObject(settings)
@@ -33,6 +39,7 @@ final class StatusItemController {
         popover.contentViewController = host
         popover.behavior = .transient
         popover.animates = true
+        popover.delegate = self
 
         if let button = statusItem.button {
             button.target = self
@@ -41,18 +48,28 @@ final class StatusItemController {
             button.setAccessibilityLabel("Local Transcription")
         }
 
+        // `@Published` emits before the property is set. Swapping the icon relayouts the
+        // status bar and the popover anchored to it synchronously, which makes SwiftUI
+        // re-read the *old* state and then miss the new one (the panel would keep showing
+        // "Transcribing…" after the result arrived). Hop to the next run loop turn first.
         viewModel.$state
             .removeDuplicates()
+            .receive(on: DispatchQueue.main)
             .sink { [weak self] state in self?.updateIcon(for: state) }
             .store(in: &cancellables)
 
         settings.$isFastModeEnabled
+            .receive(on: DispatchQueue.main)
             .sink { [weak self] enabled in self?.updateToolTip(fastMode: enabled) }
             .store(in: &cancellables)
     }
 
     func showPopover() {
-        guard let button = statusItem.button, !popover.isShown else { return }
+        guard let button = statusItem.button else { return }
+        if popover.isShown {
+            if isClosing { showsAgainWhenClosed = true }
+            return
+        }
         // Activate first and make the popover key right away: otherwise the first click
         // inside it only focuses the window, and copying a transcription takes two clicks.
         // Being key is also what makes its shortcuts (Esc, ⌘Q, ⌘,) work.
@@ -62,7 +79,22 @@ final class StatusItemController {
     }
 
     func closePopover() {
+        showsAgainWhenClosed = false
         popover.performClose(nil)
+    }
+
+    nonisolated func popoverWillClose(_ notification: Notification) {
+        MainActor.assumeIsolated { isClosing = true }
+    }
+
+    nonisolated func popoverDidClose(_ notification: Notification) {
+        MainActor.assumeIsolated {
+            isClosing = false
+            if showsAgainWhenClosed {
+                showsAgainWhenClosed = false
+                showPopover()
+            }
+        }
     }
 
     private func togglePopover() {

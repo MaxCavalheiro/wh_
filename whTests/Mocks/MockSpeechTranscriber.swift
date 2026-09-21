@@ -17,6 +17,7 @@ final class MockSpeechTranscriber: SpeechTranscribing, @unchecked Sendable {
     private var _prepareCallCount = 0
     private var _transcribeCallCount = 0
     private var _lastAudioURL: URL?
+    private var _transcribeDelay: Duration?
 
     var prepareError: Error? {
         get { lock.withLock { _prepareError } }
@@ -34,6 +35,11 @@ final class MockSpeechTranscriber: SpeechTranscribing, @unchecked Sendable {
     var progressUpdates: [Double] {
         get { lock.withLock { _progressUpdates } }
         set { lock.withLock { _progressUpdates = newValue } }
+    }
+    /// Simulates a slow model so state transitions can be observed mid-flight.
+    var transcribeDelay: Duration? {
+        get { lock.withLock { _transcribeDelay } }
+        set { lock.withLock { _transcribeDelay = newValue } }
     }
     var prepareCallCount: Int { lock.withLock { _prepareCallCount } }
     var transcribeCallCount: Int { lock.withLock { _transcribeCallCount } }
@@ -53,6 +59,7 @@ final class MockSpeechTranscriber: SpeechTranscribing, @unchecked Sendable {
             _transcribeCallCount += 1
             _lastAudioURL = audioURL
         }
+        if let transcribeDelay { try await Task.sleep(for: transcribeDelay) }
         if let transcribeError { throw transcribeError }
         return transcriptionText
     }
