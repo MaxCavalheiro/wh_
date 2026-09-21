@@ -10,14 +10,19 @@ import SwiftUI
 /// Owns the menu bar icon and the popover that hosts `MenuBarPanelView`.
 ///
 /// Replaces SwiftUI's `MenuBarExtra`, which offers no way to open its panel from code —
-/// needed so the panel can appear when a recording starts from the global shortcut.
+/// needed so the panel can appear when a recording starts from the global shortcut or
+/// finishes in fast mode.
 @MainActor
 final class StatusItemController {
+    private let viewModel: TranscriptionViewModel
+    private let settings: AppSettings
     private let statusItem: NSStatusItem
     private let popover = NSPopover()
     private var cancellables = Set<AnyCancellable>()
 
     init(viewModel: TranscriptionViewModel, settings: AppSettings) {
+        self.viewModel = viewModel
+        self.settings = settings
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
 
         let host = NSHostingController(
@@ -31,14 +36,18 @@ final class StatusItemController {
 
         if let button = statusItem.button {
             button.target = self
-            button.action = #selector(togglePopover)
+            button.action = #selector(statusItemClicked)
+            button.sendAction(on: [.leftMouseUp, .rightMouseUp])
             button.setAccessibilityLabel("Local Transcription")
         }
 
         viewModel.$state
-            .map(\.menuBarSymbol)
             .removeDuplicates()
-            .sink { [weak self] symbol in self?.updateIcon(symbol) }
+            .sink { [weak self] state in self?.updateIcon(for: state) }
+            .store(in: &cancellables)
+
+        settings.$isFastModeEnabled
+            .sink { [weak self] enabled in self?.updateToolTip(fastMode: enabled) }
             .store(in: &cancellables)
     }
 
@@ -53,7 +62,7 @@ final class StatusItemController {
         popover.performClose(nil)
     }
 
-    @objc private func togglePopover() {
+    private func togglePopover() {
         if popover.isShown {
             closePopover()
         } else {
@@ -61,9 +70,49 @@ final class StatusItemController {
         }
     }
 
-    private func updateIcon(_ symbol: String) {
+    // MARK: - Clicks
+
+    @objc private func statusItemClicked() {
+        let click: StatusItemClick = NSApp.currentEvent?.type == .rightMouseUp ? .right : .left
+
+        switch StatusItemClickPolicy.action(for: click, fastMode: settings.isFastModeEnabled, state: viewModel.state) {
+        case .togglePanel:
+            togglePopover()
+        case .startRecording:
+            Task { await viewModel.startRecording() }
+        case .stopRecording:
+            // Open the panel right away so "Transcribing…" and then the result are visible.
+            showPopover()
+            Task { await viewModel.stopRecording() }
+        }
+    }
+
+    // MARK: - Icon
+
+    private func updateIcon(for state: TranscriptionState) {
+        statusItem.button?.image = state.isRecording ? Self.recordingImage : Self.templateImage(state.menuBarSymbol)
+    }
+
+    private static func templateImage(_ symbol: String) -> NSImage? {
         let image = NSImage(systemSymbolName: symbol, accessibilityDescription: "Local Transcription")
         image?.isTemplate = true
-        statusItem.button?.image = image
+        return image
+    }
+
+    /// Red circle with a white stop square, the same stop button the panel shows while
+    /// recording. Not a template image so the red survives in the menu bar.
+    private static let recordingImage: NSImage? = {
+        let configuration = NSImage.SymbolConfiguration(paletteColors: [.white, .systemRed])
+            .applying(.init(pointSize: 15, weight: .regular))
+        let image = NSImage(systemSymbolName: "stop.circle.fill", accessibilityDescription: "Recording")?
+            .withSymbolConfiguration(configuration)
+        image?.isTemplate = false
+        return image
+    }()
+
+    private func updateToolTip(fastMode: Bool) {
+        statusItem.button?.toolTip = fastMode
+            ? "Click to record, click again to transcribe. Right-click to open."
+            : "Local Transcription"
     }
 }

@@ -26,6 +26,16 @@ final class AppSettingsTests: XCTestCase {
         XCTAssertFalse(AppSettings(defaults: defaults).showsQuickActions)
     }
 
+    func testFastModeIsOffByDefault() {
+        XCTAssertFalse(AppSettings(defaults: defaults).isFastModeEnabled)
+    }
+
+    func testFastModePreferencePersists() {
+        AppSettings(defaults: defaults).isFastModeEnabled = true
+
+        XCTAssertTrue(AppSettings(defaults: defaults).isFastModeEnabled)
+    }
+
     func testQuickActionsPreferencePersists() {
         AppSettings(defaults: defaults).showsQuickActions = true
 

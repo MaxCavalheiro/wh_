@@ -17,8 +17,9 @@ struct SettingsView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             header
-            quickActionsSection
+            fastModeSection
             shortcutSection
+            quickActionsSection
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -44,6 +45,23 @@ struct SettingsView: View {
     }
 
     // MARK: - Sections
+
+    private var fastModeSection: some View {
+        SettingsSection(title: "Fast mode") {
+            Toggle(isOn: $settings.isFastModeEnabled) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Record from the menu bar icon")
+                        .font(.callout)
+                    Text("Click the icon to start recording and click again to transcribe, without opening the panel. Right-click opens it.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .toggleStyle(.switch)
+            .controlSize(.small)
+        }
+    }
 
     private var quickActionsSection: some View {
         SettingsSection(title: "Quick actions") {
