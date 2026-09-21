@@ -53,9 +53,12 @@ final class StatusItemController {
 
     func showPopover() {
         guard let button = statusItem.button, !popover.isShown else { return }
-        popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
-        // The popover must be key for its keyboard shortcuts (Esc, ⌘Q, ⌘,) to work.
+        // Activate first and make the popover key right away: otherwise the first click
+        // inside it only focuses the window, and copying a transcription takes two clicks.
+        // Being key is also what makes its shortcuts (Esc, ⌘Q, ⌘,) work.
         NSApp.activate()
+        popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+        popover.contentViewController?.view.window?.makeKeyAndOrderFront(nil)
     }
 
     func closePopover() {
@@ -100,15 +103,16 @@ final class StatusItemController {
     }
 
     /// Red circle with a white stop square, the same stop button the panel shows while
-    /// recording. Drawn by hand so it is exactly centered and sized like the other
-    /// menu bar icons; not a template image so the red survives in the menu bar.
+    /// recording. Drawn by hand on a canvas as tall as the status bar button (22pt), so
+    /// its centre is the button's centre regardless of AppKit's image alignment, with
+    /// every edge on a whole Retina pixel. Not a template image so the red survives.
     private static let recordingImage: NSImage = {
-        let side: CGFloat = 18
+        let side: CGFloat = 22
         let image = NSImage(size: NSSize(width: side, height: side), flipped: false) { rect in
             NSColor.systemRed.setFill()
-            NSBezierPath(ovalIn: rect.insetBy(dx: 0.5, dy: 0.5)).fill()
+            NSBezierPath(ovalIn: rect.insetBy(dx: 1.5, dy: 1.5)).fill()  // 19pt circle
 
-            let square: CGFloat = 7
+            let square: CGFloat = 8
             let squareRect = NSRect(x: (side - square) / 2, y: (side - square) / 2, width: square, height: square)
             NSColor.white.setFill()
             NSBezierPath(roundedRect: squareRect, xRadius: 1.5, yRadius: 1.5).fill()

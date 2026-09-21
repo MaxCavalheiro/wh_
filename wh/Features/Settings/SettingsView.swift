@@ -17,9 +17,8 @@ struct SettingsView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             header
-            fastModeSection
+            optionsSection
             shortcutSection
-            quickActionsSection
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -46,37 +45,21 @@ struct SettingsView: View {
 
     // MARK: - Sections
 
-    private var fastModeSection: some View {
-        SettingsSection(title: "Fast mode") {
-            Toggle(isOn: $settings.isFastModeEnabled) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Record from the menu bar icon")
-                        .font(.callout)
-                    Text("Click the icon to start recording and click again to transcribe, without opening the panel. Right-click opens it.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
+    private var optionsSection: some View {
+        SettingsSection(title: "Options") {
+            VStack(alignment: .leading, spacing: 10) {
+                SettingsToggle(
+                    isOn: $settings.isFastModeEnabled,
+                    title: "Fast mode",
+                    detail: "Click the menu bar icon to start recording and click again to transcribe, without opening the panel. Right-click opens it."
+                )
+                Divider()
+                SettingsToggle(
+                    isOn: $settings.showsQuickActions,
+                    title: "Show quick actions",
+                    detail: "Buttons next to each transcription's time, like Open in ChatGPT."
+                )
             }
-            .toggleStyle(.switch)
-            .controlSize(.small)
-        }
-    }
-
-    private var quickActionsSection: some View {
-        SettingsSection(title: "Quick actions") {
-            Toggle(isOn: $settings.showsQuickActions) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Show quick actions")
-                        .font(.callout)
-                    Text("Buttons next to each transcription's time, like Open in ChatGPT.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-            }
-            .toggleStyle(.switch)
-            .controlSize(.small)
         }
     }
 
@@ -102,7 +85,31 @@ struct SettingsView: View {
     }
 }
 
-// MARK: - Section
+// MARK: - Pieces
+
+/// Switch with a title and a secondary explanation, laid out like the history rows.
+private struct SettingsToggle: View {
+    @Binding var isOn: Bool
+    let title: LocalizedStringKey
+    let detail: LocalizedStringKey
+
+    var body: some View {
+        Toggle(isOn: $isOn) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.callout)
+                Text(detail)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            // Fill the row so every switch sits on the same right edge.
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .toggleStyle(.switch)
+        .controlSize(.small)
+    }
+}
 
 /// Uppercase caption title over a rounded card, matching the history list's headers and rows.
 private struct SettingsSection<Content: View>: View {
