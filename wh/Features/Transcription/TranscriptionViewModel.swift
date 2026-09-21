@@ -12,6 +12,9 @@ import os
 final class TranscriptionViewModel: ObservableObject {
     /// Entries fetched per page while scrolling the history.
     static let historyPageSize = 6
+    /// Anything shorter is an accidental click, not speech; it is discarded instead of
+    /// producing a "no speech detected" error.
+    static let minimumRecordingDuration: TimeInterval = 0.5
 
     @Published private(set) var state: TranscriptionState = .preparingModel(progress: nil)
     /// Newest first. Grows page by page via `loadMoreHistoryIfNeeded(after:)`.
@@ -29,6 +32,7 @@ final class TranscriptionViewModel: ObservableObject {
     private let logger = AppLogger.viewModel
 
     private var isModelReady = false
+    private var isStartingRecording = false
     private var isLoadingHistory = false
     private var durationTask: Task<Void, Never>?
     private var noticeTask: Task<Void, Never>?
@@ -90,7 +94,11 @@ final class TranscriptionViewModel: ObservableObject {
     }
 
     func startRecording() async {
-        guard isModelReady, state == .ready else { return }
+        // The first start in a process can take a moment while audio spins up; a second
+        // click in that window must not try to open another session on top of it.
+        guard isModelReady, state == .ready, !isStartingRecording else { return }
+        isStartingRecording = true
+        defer { isStartingRecording = false }
         recordingDuration = 0
 
         do {
@@ -108,6 +116,13 @@ final class TranscriptionViewModel: ObservableObject {
     func stopRecording() async {
         guard state == .recording else { return }
         stopDurationTimer()
+
+        if audioRecorder.currentDuration < Self.minimumRecordingDuration {
+            logger.info("Recording too short, discarding")
+            cancelRecording()
+            showNotice("Recording too short. Hold on a little longer.")
+            return
+        }
         state = .transcribing
 
         var audioURL: URL?

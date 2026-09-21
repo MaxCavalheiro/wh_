@@ -100,13 +100,22 @@ final class StatusItemController {
     }
 
     /// Red circle with a white stop square, the same stop button the panel shows while
-    /// recording. Not a template image so the red survives in the menu bar.
-    private static let recordingImage: NSImage? = {
-        let configuration = NSImage.SymbolConfiguration(paletteColors: [.white, .systemRed])
-            .applying(.init(pointSize: 15, weight: .regular))
-        let image = NSImage(systemSymbolName: "stop.circle.fill", accessibilityDescription: "Recording")?
-            .withSymbolConfiguration(configuration)
-        image?.isTemplate = false
+    /// recording. Drawn by hand so it is exactly centered and sized like the other
+    /// menu bar icons; not a template image so the red survives in the menu bar.
+    private static let recordingImage: NSImage = {
+        let side: CGFloat = 18
+        let image = NSImage(size: NSSize(width: side, height: side), flipped: false) { rect in
+            NSColor.systemRed.setFill()
+            NSBezierPath(ovalIn: rect.insetBy(dx: 0.5, dy: 0.5)).fill()
+
+            let square: CGFloat = 7
+            let squareRect = NSRect(x: (side - square) / 2, y: (side - square) / 2, width: square, height: square)
+            NSColor.white.setFill()
+            NSBezierPath(roundedRect: squareRect, xRadius: 1.5, yRadius: 1.5).fill()
+            return true
+        }
+        image.isTemplate = false
+        image.accessibilityDescription = "Recording"
         return image
     }()
 

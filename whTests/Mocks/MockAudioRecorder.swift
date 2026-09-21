@@ -12,7 +12,10 @@ final class MockAudioRecorder: AudioRecording {
     var startError: Error?
     var stopError: Error?
     var stopURL = URL(fileURLWithPath: "/tmp/mock-recording.wav")
-    var currentDuration: TimeInterval = 0
+    /// Long enough to count as a real recording (see `TranscriptionViewModel.minimumRecordingDuration`).
+    var currentDuration: TimeInterval = 3
+    /// Simulates the audio system taking a moment to spin up.
+    var startDelay: Duration?
 
     private(set) var startCallCount = 0
     private(set) var stopCallCount = 0
@@ -25,6 +28,7 @@ final class MockAudioRecorder: AudioRecording {
     func startRecording() async throws {
         startCallCount += 1
         if let startError { throw startError }
+        if let startDelay { try await Task.sleep(for: startDelay) }
     }
 
     func cancelRecording() {

@@ -231,6 +231,20 @@ final class TranscriptionViewModelTests: XCTestCase {
         XCTAssertEqual(recorder.startCallCount, 1)
     }
 
+    /// A second click while the first start is still spinning up the audio system must
+    /// not open another session (which would fail and surface an error).
+    func testStartRecordingWhileStartingIsIgnored() async {
+        await viewModel.prepare()
+        recorder.startDelay = .milliseconds(100)
+
+        async let first: Void = viewModel.startRecording()
+        async let second: Void = viewModel.startRecording()
+        _ = await (first, second)
+
+        XCTAssertEqual(recorder.startCallCount, 1)
+        XCTAssertEqual(viewModel.state, .recording)
+    }
+
     // MARK: - Toggle
 
     func testToggleStartsThenStopsRecording() async throws {
@@ -325,6 +339,20 @@ final class TranscriptionViewModelTests: XCTestCase {
         await recordAndTranscribe("after cancel")
 
         XCTAssertEqual(viewModel.history.map(\.text), ["after cancel"])
+    }
+
+    func testStopDiscardsRecordingsThatAreTooShort() async {
+        await prepareAndStart()
+        recorder.currentDuration = 0.2
+
+        await viewModel.stopRecording()
+
+        XCTAssertEqual(viewModel.state, .ready)
+        XCTAssertEqual(recorder.cancelCallCount, 1)
+        XCTAssertEqual(recorder.stopCallCount, 0)
+        XCTAssertEqual(transcriber.transcribeCallCount, 0)
+        XCTAssertTrue(viewModel.history.isEmpty)
+        XCTAssertEqual(viewModel.notice, "Recording too short. Hold on a little longer.")
     }
 
     func testStopRecordingIgnoredWhenNotRecording() async {
