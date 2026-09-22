@@ -66,7 +66,18 @@ Fast. Private. WhisperKit-powered. Open source.
 
 | 1 · Download | 2 · Install | 3 · Start dictating |
 | :-- | :-- | :-- |
-| Get the [latest release](https://github.com/MaxCavalheiro/wh_/releases/latest) for macOS. | Drag `wh.app` to *Applications* and launch it. | Click the microphone icon in the menu bar and speak. |
+| Get the `.dmg` from the [latest release](https://github.com/MaxCavalheiro/wh_/releases/latest). | Open it and drag `wh.app` to *Applications*. | Click the microphone icon in the menu bar and speak. |
+
+> **First launch:** macOS will say wh_ "cannot be opened because Apple cannot check it
+> for malicious software". wh_ is not signed with an Apple Developer certificate (the
+> program costs $99/year), so Gatekeeper cannot verify it. To open it anyway:
+>
+> 1. Open **System Settings › Privacy & Security**.
+> 2. Scroll down to the message about wh_ and click **Open Anyway**.
+> 3. Confirm with **Open**.
+>
+> You only do this once. If you would rather not, [build from source](#build-from-source) —
+> apps you compile yourself are trusted automatically.
 
 > On first launch wh_ downloads a Whisper model (a few hundred MB) into the app's sandbox container (`~/Library/Containers/max.wh/Data/Library/Application Support/WhisperModels`). This happens once; after that everything runs offline.
 
@@ -105,6 +116,12 @@ Run the test suite:
 
 ```sh
 xcodebuild -scheme wh -destination 'platform=macOS' test
+```
+
+Build a release DMG (universal, Apple Silicon and Intel) into `dist/`:
+
+```sh
+scripts/build-release.sh
 ```
 
 > Integration tests (`WhisperIntegrationTests`, `AudioRecorderIntegrationTests`) download a model and need a microphone, so they take a while the first time.
