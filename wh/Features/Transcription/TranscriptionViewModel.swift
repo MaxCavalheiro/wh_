@@ -77,6 +77,9 @@ final class TranscriptionViewModel: ObservableObject {
             }
             isModelReady = true
             state = .ready
+            // The preparation can run for many minutes; say plainly that it is over,
+            // otherwise the status line just disappears and nothing marks the end.
+            showNotice("Speech model ready. Click the microphone to record.")
         } catch {
             logger.error("Model preparation failed: \(error.localizedDescription, privacy: .public)")
             state = .failed(AppError.from(error, fallback: .modelInitializationFailed))

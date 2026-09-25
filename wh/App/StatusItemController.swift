@@ -24,6 +24,9 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
     /// is remembered and honoured in `popoverDidClose`.
     private var isClosing = false
     private var showsAgainWhenClosed = false
+    /// The panel is opened once when a model download starts, so a first launch does not
+    /// spend several minutes downloading with nothing on screen to say so.
+    private var hasAnnouncedDownload = false
 
     init(viewModel: TranscriptionViewModel, settings: AppSettings) {
         self.viewModel = viewModel
@@ -55,7 +58,10 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
         viewModel.$state
             .removeDuplicates()
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] state in self?.updateIcon(for: state) }
+            .sink { [weak self] state in
+                self?.updateIcon(for: state)
+                self?.announceDownloadIfNeeded(state)
+            }
             .store(in: &cancellables)
 
         settings.$isFastModeEnabled
@@ -120,6 +126,16 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
             showPopover()
             Task { await viewModel.stopRecording() }
         }
+    }
+
+    /// Shows the panel the first time a download reports progress. A model already on
+    /// disk never reports progress, so a normal launch is left alone.
+    private func announceDownloadIfNeeded(_ state: TranscriptionState) {
+        guard !hasAnnouncedDownload,
+              case .preparingModel(.downloading(let progress)) = state,
+              progress != nil else { return }
+        hasAnnouncedDownload = true
+        showPopover()
     }
 
     // MARK: - Icon

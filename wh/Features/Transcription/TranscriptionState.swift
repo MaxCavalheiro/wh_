@@ -44,9 +44,9 @@ enum TranscriptionState: Equatable {
         switch self {
         case .preparingModel(.downloading(let progress)):
             if let progress, progress > 0, progress < 1 {
-                return "Downloading speech model… \(Int(progress * 100))%"
+                return "Downloading speech model… \(Int(progress * 100))%\nAbout 600 MB, downloaded once."
             }
-            return "Downloading speech model…"
+            return "Downloading speech model…\nAbout 600 MB, downloaded once."
         case .preparingModel(.optimizing):
             return "Optimizing the model for your Mac.\nThis happens once and can take a few minutes."
         case .ready, .recording:

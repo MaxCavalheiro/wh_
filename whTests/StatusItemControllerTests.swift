@@ -33,9 +33,11 @@ final class StatusItemControllerTests: XCTestCase {
         UserDefaults().removePersistentDomain(forName: suite)
         let settings = AppSettings(defaults: UserDefaults(suiteName: suite)!)
         settings.isFastModeEnabled = true
-        await viewModel.prepare()
 
+        // The real app builds the status item before preparing the model; preparing first
+        // would leave a notice animating into a panel that has no window yet.
         controller = StatusItemController(viewModel: viewModel, settings: settings)
+        await viewModel.prepare()
         button = try XCTUnwrap(controller.statusItem.button)
         hostView = try XCTUnwrap(controller.popover.contentViewController?.view)
         await settle()

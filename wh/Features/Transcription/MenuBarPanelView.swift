@@ -20,14 +20,15 @@ struct MenuBarPanelView: View {
                 recordSection
                 Divider()
                 historySection
-                if let notice = viewModel.notice {
-                    Text(notice)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-                        .frame(maxWidth: .infinity)
-                        .transition(.opacity)
-                }
+                // Always laid out, even when empty: a notice that appears and disappears
+                // would otherwise resize the popover, and resizing it while it is closing
+                // sends SwiftUI's material resolution into infinite recursion.
+                Text(viewModel.notice ?? " ")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2, reservesSpace: true)
+                    .frame(maxWidth: .infinity)
             }
             Divider()
             footer
@@ -55,13 +56,11 @@ struct MenuBarPanelView: View {
                     .contentTransition(.numericText())
             }
 
+            // Only the download has a measurable share. The optimisation phase is covered
+            // by the spinner in the record button and by its own status line.
             if case .preparingModel(.downloading(let progress)) = viewModel.state,
                let progress, progress > 0, progress < 1 {
                 ProgressView(value: progress)
-                    .frame(maxWidth: 200)
-            } else if case .preparingModel(.optimizing) = viewModel.state {
-                ProgressView()
-                    .progressViewStyle(.linear)
                     .frame(maxWidth: 200)
             }
 

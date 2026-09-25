@@ -155,6 +155,13 @@ final class TranscriptionViewModelTests: XCTestCase {
         XCTAssertEqual(transcriber.prepareCallCount, 1)
     }
 
+    func testPrepareAnnouncesThatTheModelIsReady() async {
+        await viewModel.prepare()
+
+        XCTAssertEqual(viewModel.state, .ready)
+        XCTAssertEqual(viewModel.notice, "Speech model ready. Click the microphone to record.")
+    }
+
     func testPrepareReportsDownloadProgress() async {
         transcriber.progressUpdates = [0.25, 0.5]
         var observed: [TranscriptionState] = []
