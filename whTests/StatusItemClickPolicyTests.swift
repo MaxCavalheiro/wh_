@@ -8,7 +8,7 @@ import XCTest
 
 final class StatusItemClickPolicyTests: XCTestCase {
     func testAnyClickTogglesPanelWhenFastModeIsOff() {
-        for state: TranscriptionState in [.ready, .recording, .transcribing, .preparingModel(progress: nil), .failed(.recordingFailed)] {
+        for state: TranscriptionState in [.ready, .recording, .transcribing, .preparingModel(.downloading(progress: nil)), .failed(.recordingFailed)] {
             XCTAssertEqual(StatusItemClickPolicy.action(for: .left, fastMode: false, state: state), .togglePanel, "\(state)")
             XCTAssertEqual(StatusItemClickPolicy.action(for: .right, fastMode: false, state: state), .togglePanel, "\(state)")
         }
@@ -23,7 +23,7 @@ final class StatusItemClickPolicyTests: XCTestCase {
     }
 
     func testFastModeLeftClickOpensPanelWhenAttentionIsNeeded() {
-        for state: TranscriptionState in [.transcribing, .preparingModel(progress: 0.5), .failed(.microphonePermissionDenied)] {
+        for state: TranscriptionState in [.transcribing, .preparingModel(.downloading(progress: 0.5)), .failed(.microphonePermissionDenied)] {
             XCTAssertEqual(StatusItemClickPolicy.action(for: .left, fastMode: true, state: state), .togglePanel, "\(state)")
         }
     }

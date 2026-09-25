@@ -24,8 +24,13 @@ final class WhisperIntegrationTests: XCTestCase {
         )
 
         let service = WhisperTranscriptionService()
-        try await service.prepare { progress in
-            print("model download progress: \(Int(progress * 100))%")
+        try await service.prepare { phase in
+            switch phase {
+            case .downloading(let progress):
+                print("model download: \(progress.map { "\(Int($0 * 100))%" } ?? "starting")")
+            case .optimizing:
+                print("compiling the model for this Mac…")
+            }
         }
 
         let text = try await service.transcribe(audioURL: audioURL)

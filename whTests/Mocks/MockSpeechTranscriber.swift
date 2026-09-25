@@ -45,13 +45,14 @@ final class MockSpeechTranscriber: SpeechTranscribing, @unchecked Sendable {
     var transcribeCallCount: Int { lock.withLock { _transcribeCallCount } }
     var lastAudioURL: URL? { lock.withLock { _lastAudioURL } }
 
-    func prepare(onProgress: @escaping @Sendable (Double) -> Void) async throws {
+    func prepare(onPhase: @escaping @Sendable (ModelPreparation) -> Void) async throws {
         lock.withLock { _prepareCallCount += 1 }
         for value in progressUpdates {
-            onProgress(value)
+            onPhase(.downloading(progress: value))
             await Task.yield()
         }
         if let prepareError { throw prepareError }
+        onPhase(.optimizing)
     }
 
     func transcribe(audioURL: URL) async throws -> String {

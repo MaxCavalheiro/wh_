@@ -55,8 +55,13 @@ struct MenuBarPanelView: View {
                     .contentTransition(.numericText())
             }
 
-            if case .preparingModel(let progress) = viewModel.state, let progress, progress > 0, progress < 1 {
+            if case .preparingModel(.downloading(let progress)) = viewModel.state,
+               let progress, progress > 0, progress < 1 {
                 ProgressView(value: progress)
+                    .frame(maxWidth: 200)
+            } else if case .preparingModel(.optimizing) = viewModel.state {
+                ProgressView()
+                    .progressViewStyle(.linear)
                     .frame(maxWidth: 200)
             }
 

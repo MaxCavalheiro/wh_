@@ -16,7 +16,7 @@ final class TranscriptionViewModel: ObservableObject {
     /// producing a "no speech detected" error.
     static let minimumRecordingDuration: TimeInterval = 0.5
 
-    @Published private(set) var state: TranscriptionState = .preparingModel(progress: nil)
+    @Published private(set) var state: TranscriptionState = .preparingModel(.downloading(progress: nil))
     /// Newest first. Grows page by page via `loadMoreHistoryIfNeeded(after:)`.
     @Published private(set) var history: [TranscriptionEntry] = []
     @Published private(set) var hasMoreHistory = true
@@ -66,13 +66,13 @@ final class TranscriptionViewModel: ObservableObject {
     /// Loads the speech model. Safe to call more than once; it is a no-op once ready.
     func prepare() async {
         guard !isModelReady else { return }
-        state = .preparingModel(progress: nil)
+        state = .preparingModel(.downloading(progress: nil))
 
         do {
-            try await transcriptionService.prepare { [weak self] progress in
+            try await transcriptionService.prepare { [weak self] phase in
                 Task { @MainActor in
                     guard let self, self.state.isPreparingModel else { return }
-                    self.state = .preparingModel(progress: progress)
+                    self.state = .preparingModel(phase)
                 }
             }
             isModelReady = true

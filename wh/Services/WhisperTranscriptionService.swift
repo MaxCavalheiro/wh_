@@ -9,9 +9,8 @@ import WhisperKit
 
 /// On-device speech-to-text. Implementations must be safe to call from any actor.
 protocol SpeechTranscribing: Sendable {
-    /// Downloads (if needed) and loads the speech model. `onProgress` receives the
-    /// download fraction in `0...1` while a download is in flight.
-    func prepare(onProgress: @escaping @Sendable (Double) -> Void) async throws
+    /// Downloads (if needed) and loads the speech model, reporting which phase it is in.
+    func prepare(onPhase: @escaping @Sendable (ModelPreparation) -> Void) async throws
     /// Transcribes the audio file at `audioURL` and returns the trimmed text.
     func transcribe(audioURL: URL) async throws -> String
 }
@@ -22,10 +21,8 @@ actor WhisperTranscriptionService: SpeechTranscribing {
     private let logger = AppLogger.whisper
     private let modelName: String?
     private let cacheDirectory: URL
-    private let defaults: UserDefaults
+    private let locator: ModelFolderLocator
     private var whisperKit: WhisperKit?
-
-    private static let modelFolderKey = "whisper.modelFolder"
 
     init(
         modelName: String? = AppConfiguration.whisperModel,
@@ -34,44 +31,52 @@ actor WhisperTranscriptionService: SpeechTranscribing {
     ) {
         self.modelName = modelName
         self.cacheDirectory = cacheDirectory
-        self.defaults = defaults
+        self.locator = ModelFolderLocator(cacheDirectory: cacheDirectory, defaults: defaults)
     }
 
     // MARK: - SpeechTranscribing
 
-    func prepare(onProgress: @escaping @Sendable (Double) -> Void) async throws {
+    func prepare(onPhase: @escaping @Sendable (ModelPreparation) -> Void) async throws {
         guard whisperKit == nil else { return }
         logger.info("Whisper model initialization started")
 
         try? FileManager.default.createDirectory(at: cacheDirectory, withIntermediateDirectories: true)
 
-        // Fast path: a model downloaded on a previous launch. Loading from the folder
-        // directly keeps the app fully offline once the model is cached.
-        if let cached = cachedModelFolder {
+        // Fast path: a model from a previous launch. Loading the folder directly keeps
+        // the app fully offline once the model is cached.
+        if let cached = locator.locate() {
+            onPhase(.optimizing)
             do {
                 whisperKit = try await load(from: cached)
+                locator.remember(cached)
                 logger.info("Whisper model ready (cached)")
                 return
             } catch {
                 logger.error("Cached model failed to load, re-downloading: \(error.localizedDescription, privacy: .public)")
-                defaults.removeObject(forKey: Self.modelFolderKey)
+                locator.forget()
             }
         }
 
         let folder: URL
         do {
+            onPhase(.downloading(progress: nil))
             let variant = try await resolveVariant()
             logger.info("Downloading model \(variant, privacy: .public)")
             folder = try await WhisperKit.download(
                 variant: variant,
                 downloadBase: cacheDirectory,
-                progressCallback: { progress in onProgress(progress.fractionCompleted) }
+                progressCallback: { progress in onPhase(.downloading(progress: progress.fractionCompleted)) }
             )
         } catch {
             logger.error("Model download failed: \(error.localizedDescription, privacy: .public)")
             throw AppError.modelDownloadFailed
         }
 
+        // Record the folder before the slow load: if the app is killed while CoreML is
+        // compiling, the next launch finds these files instead of downloading them again.
+        locator.remember(folder)
+
+        onPhase(.optimizing)
         do {
             whisperKit = try await load(from: folder)
         } catch {
@@ -79,7 +84,6 @@ actor WhisperTranscriptionService: SpeechTranscribing {
             throw AppError.modelInitializationFailed
         }
 
-        defaults.set(folder.path, forKey: Self.modelFolderKey)
         logger.info("Whisper model ready")
     }
 
@@ -122,16 +126,6 @@ actor WhisperTranscriptionService: SpeechTranscribing {
     }
 
     // MARK: - Private
-
-    private var cachedModelFolder: URL? {
-        guard let path = defaults.string(forKey: Self.modelFolderKey) else { return nil }
-        let url = URL(fileURLWithPath: path, isDirectory: true)
-        var isDirectory: ObjCBool = false
-        guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory), isDirectory.boolValue else {
-            return nil
-        }
-        return url
-    }
 
     private func resolveVariant() async throws -> String {
         if let modelName { return modelName }

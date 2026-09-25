@@ -70,7 +70,7 @@ final class TranscriptionViewModelTests: XCTestCase {
     // MARK: - Initial state
 
     func testInitialState() {
-        XCTAssertEqual(viewModel.state, .preparingModel(progress: nil))
+        XCTAssertEqual(viewModel.state, .preparingModel(.downloading(progress: nil)))
         XCTAssertTrue(viewModel.history.isEmpty)
         XCTAssertEqual(viewModel.recordingDuration, 0)
         XCTAssertEqual(viewModel.formattedDuration, "00:00")
@@ -165,8 +165,8 @@ final class TranscriptionViewModelTests: XCTestCase {
         await Task.yield()
 
         XCTAssertEqual(viewModel.state, .ready)
-        XCTAssertTrue(observed.contains(.preparingModel(progress: 0.25)))
-        XCTAssertTrue(observed.contains(.preparingModel(progress: 0.5)))
+        XCTAssertTrue(observed.contains(.preparingModel(.downloading(progress: 0.25))))
+        XCTAssertTrue(observed.contains(.preparingModel(.downloading(progress: 0.5))))
     }
 
     func testPrepareFailureShowsError() async {
@@ -204,7 +204,7 @@ final class TranscriptionViewModelTests: XCTestCase {
     func testStartRecordingIgnoredWhileModelNotReady() async {
         await viewModel.startRecording()
 
-        XCTAssertEqual(viewModel.state, .preparingModel(progress: nil))
+        XCTAssertEqual(viewModel.state, .preparingModel(.downloading(progress: nil)))
         XCTAssertEqual(recorder.startCallCount, 0)
     }
 
@@ -273,7 +273,7 @@ final class TranscriptionViewModelTests: XCTestCase {
         await viewModel.toggleRecording()
 
         XCTAssertEqual(recorder.startCallCount, 0)
-        XCTAssertEqual(viewModel.state, .preparingModel(progress: nil))
+        XCTAssertEqual(viewModel.state, .preparingModel(.downloading(progress: nil)))
     }
 
     // MARK: - Stop recording + transcription
