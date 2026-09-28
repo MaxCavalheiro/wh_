@@ -57,19 +57,15 @@ actor WhisperTranscriptionService: SpeechTranscribing {
             }
         }
 
+        try checkThereIsRoomForTheModel()
+
         let folder: URL
         do {
-            onPhase(.downloading(progress: nil))
-            let variant = try await resolveVariant()
-            logger.info("Downloading model \(variant, privacy: .public)")
-            folder = try await WhisperKit.download(
-                variant: variant,
-                downloadBase: cacheDirectory,
-                progressCallback: { progress in onPhase(.downloading(progress: progress.fractionCompleted)) }
-            )
+            folder = try await downloadWithRetries(onPhase: onPhase)
         } catch {
-            logger.error("Model download failed: \(error.localizedDescription, privacy: .public)")
-            throw AppError.modelDownloadFailed
+            let nsError = error as NSError
+            logger.error("Model download failed: \(error.localizedDescription, privacy: .public) [\(nsError.domain, privacy: .public) \(nsError.code)]")
+            throw AppError.from(error, fallback: .modelDownloadFailed)
         }
 
         // Record the folder before the slow load: if the app is killed while CoreML is
@@ -126,6 +122,51 @@ actor WhisperTranscriptionService: SpeechTranscribing {
     }
 
     // MARK: - Private
+
+    /// How many times a download is retried before giving up. Files already fetched are
+    /// kept, so each attempt resumes rather than starting the ~600 MB over.
+    private static let downloadAttempts = 3
+
+    /// Retries a download that failed for a reason that may pass, such as a dropped
+    /// connection. Losing a long download to one network blip is worth avoiding; a full
+    /// disk or a missing model is not worth retrying.
+    private func downloadWithRetries(onPhase: @escaping @Sendable (ModelPreparation) -> Void) async throws -> URL {
+        let variant = try await resolveVariant()
+        var lastError: Error?
+
+        for attempt in 1...Self.downloadAttempts {
+            do {
+                onPhase(.downloading(progress: nil))
+                logger.info("Downloading model \(variant, privacy: .public) (attempt \(attempt))")
+                return try await WhisperKit.download(
+                    variant: variant,
+                    downloadBase: cacheDirectory,
+                    progressCallback: { progress in onPhase(.downloading(progress: progress.fractionCompleted)) }
+                )
+            } catch is CancellationError {
+                throw CancellationError()
+            } catch {
+                lastError = error
+                guard AppError.from(error, fallback: .modelDownloadFailed) != .notEnoughDiskSpace,
+                      attempt < Self.downloadAttempts else { break }
+                logger.error("Download attempt \(attempt) failed, retrying: \(error.localizedDescription, privacy: .public)")
+                try await Task.sleep(for: .seconds(2 * attempt))
+            }
+        }
+        throw lastError ?? AppError.modelDownloadFailed
+    }
+
+    /// The model needs roughly 600 MB, plus room for the files being written. Refusing up
+    /// front beats failing at 90% and throwing away the whole download.
+    private static let requiredFreeBytes = 1_500_000_000
+
+    private func checkThereIsRoomForTheModel() throws {
+        let values = try? cacheDirectory.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey])
+        guard let available = values?.volumeAvailableCapacityForImportantUsage else { return }
+        guard available < Int64(Self.requiredFreeBytes) else { return }
+        logger.error("Only \(available / 1_000_000) MB free, need \(Self.requiredFreeBytes / 1_000_000) MB")
+        throw AppError.notEnoughDiskSpace
+    }
 
     private func resolveVariant() async throws -> String {
         if let modelName { return modelName }

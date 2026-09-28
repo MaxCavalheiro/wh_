@@ -14,6 +14,8 @@ enum AppError: LocalizedError, Equatable {
     case audioFileUnavailable
     case modelInitializationFailed
     case modelDownloadFailed
+    case noInternetConnection
+    case notEnoughDiskSpace
     case modelNotReady
     case transcriptionFailed
     case emptyTranscription
@@ -32,6 +34,10 @@ enum AppError: LocalizedError, Equatable {
             return "The speech recognition model could not be initialized."
         case .modelDownloadFailed:
             return "The speech recognition model could not be downloaded."
+        case .noInternetConnection:
+            return "No internet connection."
+        case .notEnoughDiskSpace:
+            return "Not enough disk space for the speech model."
         case .modelNotReady:
             return "The speech recognition model is not ready."
         case .transcriptionFailed:
@@ -46,7 +52,11 @@ enum AppError: LocalizedError, Equatable {
         case .microphonePermissionDenied:
             return "Enable microphone access for this app in System Settings › Privacy & Security › Microphone."
         case .modelDownloadFailed:
-            return "Check your internet connection and try again. The model is only downloaded once."
+            return "Check your internet connection and try again. The download picks up where it left off."
+        case .noInternetConnection:
+            return "Reconnect and try again. The download picks up where it left off."
+        case .notEnoughDiskSpace:
+            return "The model needs about 1.5 GB free. Free some space and try again."
         case .emptyTranscription:
             return "Try recording again and speak closer to the microphone."
         default:
@@ -60,7 +70,30 @@ enum AppError: LocalizedError, Equatable {
     }
 
     /// Maps any thrown error to an `AppError`, preserving it when it already is one.
+    ///
+    /// A failed download deserves the actual reason: "could not be downloaded" on its own
+    /// leaves the user with nothing to act on.
     static func from(_ error: Error, fallback: AppError) -> AppError {
-        (error as? AppError) ?? fallback
+        if let appError = error as? AppError { return appError }
+        let nsError = error as NSError
+
+        if nsError.domain == NSURLErrorDomain {
+            switch nsError.code {
+            case NSURLErrorNotConnectedToInternet, NSURLErrorNetworkConnectionLost,
+                 NSURLErrorCannotFindHost, NSURLErrorCannotConnectToHost,
+                 NSURLErrorTimedOut, NSURLErrorDNSLookupFailed:
+                return .noInternetConnection
+            default:
+                break
+            }
+        }
+        if nsError.domain == NSCocoaErrorDomain,
+           nsError.code == NSFileWriteOutOfSpaceError || nsError.code == NSFileWriteVolumeReadOnlyError {
+            return .notEnoughDiskSpace
+        }
+        if nsError.domain == NSPOSIXErrorDomain, nsError.code == Int(ENOSPC) {
+            return .notEnoughDiskSpace
+        }
+        return fallback
     }
 }

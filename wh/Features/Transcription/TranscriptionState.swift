@@ -54,7 +54,9 @@ enum TranscriptionState: Equatable {
         case .transcribing:
             return "Transcribing…"
         case .failed(let error):
-            return error.errorDescription ?? "Something went wrong."
+            let description = error.errorDescription ?? "Something went wrong."
+            guard let suggestion = error.recoverySuggestion else { return description }
+            return description + "\n" + suggestion
         }
     }
 
