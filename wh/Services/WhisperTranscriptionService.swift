@@ -123,9 +123,11 @@ actor WhisperTranscriptionService: SpeechTranscribing {
 
     // MARK: - Private
 
-    /// How many times a download is retried before giving up. Files already fetched are
-    /// kept, so each attempt resumes rather than starting the ~600 MB over.
-    private static let downloadAttempts = 3
+    /// How many times a download is retried before giving up. WhisperKit gives up on a
+    /// request after 10 seconds without data, so a connection that is merely busy — a video
+    /// call, another large download — fails often. Every attempt resumes from the bytes
+    /// already on disk, so trying again several times makes real progress each time.
+    private static let downloadAttempts = 6
 
     /// Retries a download that failed for a reason that may pass, such as a dropped
     /// connection. Losing a long download to one network blip is worth avoiding; a full
@@ -150,7 +152,7 @@ actor WhisperTranscriptionService: SpeechTranscribing {
                 guard AppError.from(error, fallback: .modelDownloadFailed) != .notEnoughDiskSpace,
                       attempt < Self.downloadAttempts else { break }
                 logger.error("Download attempt \(attempt) failed, retrying: \(error.localizedDescription, privacy: .public)")
-                try await Task.sleep(for: .seconds(2 * attempt))
+                try await Task.sleep(for: .seconds(min(3 * attempt, 15)))
             }
         }
         throw lastError ?? AppError.modelDownloadFailed

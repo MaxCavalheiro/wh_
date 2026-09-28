@@ -32,6 +32,7 @@ final class TranscriptionViewModel: ObservableObject {
     private let logger = AppLogger.viewModel
 
     private var isModelReady = false
+    private var highestDownloadProgress: Double = 0
     private var isStartingRecording = false
     private var isLoadingHistory = false
     private var durationTask: Task<Void, Never>?
@@ -66,13 +67,14 @@ final class TranscriptionViewModel: ObservableObject {
     /// Loads the speech model. Safe to call more than once; it is a no-op once ready.
     func prepare() async {
         guard !isModelReady else { return }
+        highestDownloadProgress = 0
         state = .preparingModel(.downloading(progress: nil))
 
         do {
             try await transcriptionService.prepare { [weak self] phase in
                 Task { @MainActor in
                     guard let self, self.state.isPreparingModel else { return }
-                    self.state = .preparingModel(phase)
+                    self.state = .preparingModel(self.monotonic(phase))
                 }
             }
             isModelReady = true
@@ -84,6 +86,14 @@ final class TranscriptionViewModel: ObservableObject {
             logger.error("Model preparation failed: \(error.localizedDescription, privacy: .public)")
             state = .failed(AppError.from(error, fallback: .modelInitializationFailed))
         }
+    }
+
+    /// Keeps reported download progress from going backwards. A retry resumes from the
+    /// files already on disk but recounts the total, so the raw fraction can drop.
+    private func monotonic(_ phase: ModelPreparation) -> ModelPreparation {
+        guard case .downloading(let progress) = phase, let progress else { return phase }
+        highestDownloadProgress = max(highestDownloadProgress, progress)
+        return .downloading(progress: highestDownloadProgress)
     }
 
     /// Single entry point for the record button: start, stop, or recover from an error.

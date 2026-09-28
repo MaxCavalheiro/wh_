@@ -15,6 +15,7 @@ enum AppError: LocalizedError, Equatable {
     case modelInitializationFailed
     case modelDownloadFailed
     case noInternetConnection
+    case downloadTimedOut
     case notEnoughDiskSpace
     case modelNotReady
     case transcriptionFailed
@@ -36,6 +37,8 @@ enum AppError: LocalizedError, Equatable {
             return "The speech recognition model could not be downloaded."
         case .noInternetConnection:
             return "No internet connection."
+        case .downloadTimedOut:
+            return "The download timed out."
         case .notEnoughDiskSpace:
             return "Not enough disk space for the speech model."
         case .modelNotReady:
@@ -55,6 +58,8 @@ enum AppError: LocalizedError, Equatable {
             return "Check your internet connection and try again. The download picks up where it left off."
         case .noInternetConnection:
             return "Reconnect and try again. The download picks up where it left off."
+        case .downloadTimedOut:
+            return "Your connection stalled — a video call or another big download can do that. Try again; it picks up where it left off."
         case .notEnoughDiskSpace:
             return "The model needs about 1.5 GB free. Free some space and try again."
         case .emptyTranscription:
@@ -79,10 +84,14 @@ enum AppError: LocalizedError, Equatable {
 
         if nsError.domain == NSURLErrorDomain {
             switch nsError.code {
-            case NSURLErrorNotConnectedToInternet, NSURLErrorNetworkConnectionLost,
-                 NSURLErrorCannotFindHost, NSURLErrorCannotConnectToHost,
-                 NSURLErrorTimedOut, NSURLErrorDNSLookupFailed:
+            case NSURLErrorNotConnectedToInternet, NSURLErrorCannotFindHost,
+                 NSURLErrorCannotConnectToHost, NSURLErrorDNSLookupFailed:
                 return .noInternetConnection
+            // The download stops after 10 seconds without data, so a connection that is
+            // merely busy times out. Calling that "no internet" sends people looking for
+            // a problem they do not have.
+            case NSURLErrorTimedOut, NSURLErrorNetworkConnectionLost:
+                return .downloadTimedOut
             default:
                 break
             }

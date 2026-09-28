@@ -11,6 +11,7 @@ final class AppErrorTests: XCTestCase {
         let all: [AppError] = [
             .microphonePermissionDenied, .microphoneUnavailable, .recordingFailed,
             .audioFileUnavailable, .modelInitializationFailed, .modelDownloadFailed,
+            .noInternetConnection, .downloadTimedOut, .notEnoughDiskSpace,
             .modelNotReady, .transcriptionFailed, .emptyTranscription,
         ]
         for error in all {
@@ -35,10 +36,19 @@ final class AppErrorTests: XCTestCase {
     // MARK: - Mapping real framework errors
 
     func testMapsOfflineErrorsToNoInternetConnection() {
-        for code in [NSURLErrorNotConnectedToInternet, NSURLErrorNetworkConnectionLost,
-                     NSURLErrorTimedOut, NSURLErrorCannotFindHost, NSURLErrorDNSLookupFailed] {
+        for code in [NSURLErrorNotConnectedToInternet, NSURLErrorCannotFindHost,
+                     NSURLErrorCannotConnectToHost, NSURLErrorDNSLookupFailed] {
             let error = NSError(domain: NSURLErrorDomain, code: code)
             XCTAssertEqual(AppError.from(error, fallback: .modelDownloadFailed), .noInternetConnection, "code \(code)")
+        }
+    }
+
+    /// A busy connection times out; reporting that as "no internet" sends people looking
+    /// for a problem they do not have.
+    func testMapsStalledTransfersToTimeoutNotToNoInternet() {
+        for code in [NSURLErrorTimedOut, NSURLErrorNetworkConnectionLost] {
+            let error = NSError(domain: NSURLErrorDomain, code: code)
+            XCTAssertEqual(AppError.from(error, fallback: .modelDownloadFailed), .downloadTimedOut, "code \(code)")
         }
     }
 
@@ -56,7 +66,7 @@ final class AppErrorTests: XCTestCase {
     }
 
     func testDownloadFailuresExplainWhatToDo() {
-        for error: AppError in [.modelDownloadFailed, .noInternetConnection, .notEnoughDiskSpace] {
+        for error: AppError in [.modelDownloadFailed, .noInternetConnection, .downloadTimedOut, .notEnoughDiskSpace] {
             XCTAssertNotNil(error.recoverySuggestion, "\(error) must tell the user what to do")
         }
     }
