@@ -23,7 +23,20 @@ struct ModelFolderLocator {
     let defaults: UserDefaults
     private let fileManager = FileManager.default
 
+    /// Name of the model folder shipped inside the app bundle, when there is one.
+    static let bundledFolderName = "WhisperModel"
+
+    /// A model shipped with the app, if this build has one. Nothing to download, nothing
+    /// to go wrong on a busy connection.
+    static var bundled: URL? {
+        guard let resources = Bundle.main.resourceURL else { return nil }
+        let folder = resources.appending(path: bundledFolderName, directoryHint: .isDirectory)
+        let locator = ModelFolderLocator(cacheDirectory: folder, defaults: .standard)
+        return locator.isComplete(folder) ? folder : nil
+    }
+
     func locate() -> URL? {
+        if let bundled = Self.bundled { return bundled }
         if let path = defaults.string(forKey: Self.defaultsKey) {
             let remembered = URL(fileURLWithPath: path, isDirectory: true)
             if isComplete(remembered) { return remembered }

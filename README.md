@@ -58,7 +58,7 @@ Fast. Private. WhisperKit-powered. Open source.
 - **Transcription history** — every transcription is saved locally (SwiftData) and grouped by day.
 - **Copy in one click** — send any past transcription straight to your clipboard.
 - **Open in ChatGPT** — copy a transcription, open ChatGPT in your browser and paste it into the composer. It never hits *Send* for you.
-- **Auto model selection** — WhisperKit picks the best model for your machine on first launch and caches it for next time.
+- **Nothing to download** — the Whisper large-v3 model ships inside the app, so wh_ works offline from the first launch.
 
 ## Get started
 
@@ -79,7 +79,9 @@ Fast. Private. WhisperKit-powered. Open source.
 > You only do this once. If you would rather not, [build from source](#build-from-source) —
 > apps you compile yourself are trusted automatically.
 
-> On first launch wh_ downloads a Whisper model (a few hundred MB) into the app's sandbox container (`~/Library/Containers/max.wh/Data/Library/Application Support/WhisperModels`). This happens once; after that everything runs offline.
+> The speech model ships inside the app, so wh_ works offline from the first launch with
+> nothing to download. That is why the DMG is around 450 MB. The first recording takes a
+> couple of minutes while macOS compiles the model for your Mac; after that it is instant.
 
 ## Usage
 
@@ -124,6 +126,9 @@ Build a release DMG (universal, Apple Silicon and Intel) into `dist/`:
 scripts/build-release.sh
 ```
 
+The first run downloads the speech model into `~/Library/Caches/wh-build` and copies it
+into the app, which is what makes the DMG large. Later runs reuse that cache.
+
 > Integration tests (`WhisperIntegrationTests`, `AudioRecorderIntegrationTests`) download a model and need a microphone, so they take a while the first time.
 
 ### Requirements
@@ -134,7 +139,10 @@ scripts/build-release.sh
 
 ### Configuration
 
-Model selection and storage paths live in [`wh/App/AppConfiguration.swift`](wh/App/AppConfiguration.swift). Set `whisperModel` to e.g. `"openai_whisper-base"` for a smaller, faster model.
+The model shipped in release builds is set by `MODEL_VARIANT` in
+[`scripts/build-release.sh`](scripts/build-release.sh). Builds without a bundled model
+(a plain Xcode run, for instance) download one on first launch; that choice and the
+storage paths live in [`wh/App/AppConfiguration.swift`](wh/App/AppConfiguration.swift).
 
 ## Privacy
 
@@ -142,7 +150,7 @@ wh_ is **local-first by design**:
 
 - Audio is recorded to a temporary file, transcribed on-device and deleted.
 - Transcriptions are stored only in a local SwiftData database inside the app's sandbox container.
-- The only network access is downloading the Whisper model from Hugging Face on first launch — and opening ChatGPT in your browser *if you ask for it*.
+- wh_ makes no network requests of its own: the model is already inside the app. The only time it opens the network is to open ChatGPT in your browser, *if you ask for it*.
 - The app runs inside the macOS App Sandbox.
 
 ## Project structure

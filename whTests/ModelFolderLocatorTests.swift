@@ -89,4 +89,22 @@ final class ModelFolderLocatorTests: XCTestCase {
         locator.forget()
         XCTAssertNil(defaults.string(forKey: "whisper.modelFolder"))
     }
+
+    // MARK: - Model shipped inside the app
+
+    /// Release builds carry the model in Resources/WhisperModel, so nothing is downloaded.
+    /// Test builds do not, and everything must keep working through the cache.
+    func testBundledModelIsUsedWhenTheBuildHasOne() throws {
+        if let bundled = ModelFolderLocator.bundled {
+            XCTAssertTrue(locator.isComplete(bundled), "a bundled model must be complete")
+            XCTAssertEqual(locator.locate()?.path, bundled.path, "the bundled model wins")
+        } else {
+            let folder = try makeModel("openai_whisper-base")
+            assertLocated(folder)
+        }
+    }
+
+    func testBundledFolderNameMatchesWhatTheReleaseScriptWrites() {
+        XCTAssertEqual(ModelFolderLocator.bundledFolderName, "WhisperModel")
+    }
 }
